@@ -1,0 +1,194 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+  <title>table-Q</title> 
+  <link rel="stylesheet" href="http://twitter.github.com/bootstrap/assets/css/bootstrap.css"/> 
+  <link rel="stylesheet" href="http://twitter.github.com/bootstrap/assets/css/bootstrap-responsive.css"/> 
+  <style> 
+    pre { 
+      background: #272822; 
+      overflow: auto; 
+      word-wrap: normal; 
+      white-space: pre; 
+    } 
+    pre code { 
+      font: 12px monaco, monospace; 
+      color: #F8F8F2; 
+    } 
+    pre code .string { 
+      color: #E6DB74; 
+    } 
+    pre code .number { 
+      color: #AE81FF; 
+    } 
+    pre code .keyword { 
+      color: #F92672; 
+    } 
+    pre code .comment { 
+      color: #b3b3b3; 
+    } 
+    h1.pagetitle { 
+      font-size: 4em; 
+      margin-bottom: 20px; 
+      margin-top: 20px; 
+    } 
+  </style> 
+</head> 
+<body> 
+  <div class="container-fluid"> 
+    <div class="row-fluid"> 
+      <h1 class="pagetitle">table-Q</h1> 
+    </div> 
+    <div class="row-fluid"> 
+      <div> 
+         
+           
+            <div class="comment declaration"> 
+              <h1>TableQ</h1> 
+              <div class="description"><p>Create table service, takes the same arguments as the native azure library</p></div> 
+               
+                <pre><code><span class="keyword">var</span> TableQ = module.exports = <span class="keyword">function</span>(){
+    <span class="keyword">var</span> service = azure.createTableService.apply(azure, arguments);
+    <span class="keyword">var</span> tableService = {};</code></pre> 
+               
+            </div> 
+           
+         
+           
+            <div class="comment property"> 
+              <h1>tableService.createTable</h1> 
+              <div class="description"><p>Create table if not exists</p></div> 
+               
+                <pre><code>tableService.createTable = node(service.createTableIfNotExists, service);</code></pre> 
+               
+            </div> 
+           
+         
+           
+            <div class="comment method"> 
+              <h1>tableService.getTables()</h1> 
+              <div class="description"><p>Get a list of all table names</p></div> 
+               
+                <pre><code>tableService.getTables = <span class="keyword">function</span>(){
+        <span class="keyword">var</span> result = Q.defer();
+        <span class="keyword">var</span> res = [];
+
+        service.queryTables(next)
+        <span class="keyword">function</span> next(err, tables, continuation){
+            <span class="keyword">if</span>(err) <span class="keyword">return</span> result.reject(err);
+            <span class="keyword">for</span>(<span class="keyword">var</span> i = <span class="number">0</span>; i&lt;tables.length; i++){
+                res.push(tables[i]);
+            }
+            <span class="keyword">if</span>(continuation.hasNextPage()){
+                continuation.getNextPage(next);
+            }<span class="keyword">else</span>{
+                result.resolve(res.map(<span class="keyword">function</span>(tab){
+                    <span class="keyword">return</span> tab.TableName;
+                }));
+            }
+        };
+
+        <span class="keyword">return</span> result.promise;
+    };</code></pre> 
+               
+            </div> 
+           
+         
+           
+            <div class="comment property"> 
+              <h1>tableService.deleteTable</h1> 
+              <div class="description"><p>Delete a table</p></div> 
+               
+                <pre><code>tableService.deleteTable = node(service.deleteTable, service);</code></pre> 
+               
+            </div> 
+           
+         
+           
+            <div class="comment method"> 
+              <h1>tableService.getTable()</h1> 
+              <div class="description"><p>Get the service to access and individual table</p></div> 
+               
+                <pre><code>tableService.getTable = <span class="keyword">function</span>(tableName){
+        <span class="keyword">var</span> table = {name:tableName};
+
+
+        table.queryEntity = <span class="keyword">function</span> (partitionKey, rowKey){
+            <span class="keyword">return</span> ncall(service.queryEntity, service, tableName, 
+                partitionKey, rowKey);
+        };
+
+        table.deleteEntity = <span class="keyword">function</span> (partitionKey, rowKey, Etag){
+            <span class="keyword">return</span> ncall(service.deleteEntity, service, 
+                tableName, {PartitionKey:partitionKey,RowKey:rowKey,Etag:Etag},
+                {checkEtag:(typeof Etag != <span class="string">"undefined"</span>)});
+        }
+
+        table.select = <span class="keyword">function</span>(){
+            <span class="keyword">var</span> query = azure.TableQuery.select.apply(TableQuery, arguments)
+                .from(tableName);
+            query.execute = <span class="keyword">function</span>(){
+
+            };
+        }
+
+        <span class="keyword">return</span> table;
+    };
+
+    <span class="keyword">return</span> tableService;
+};
+
+<span class="keyword">function</span> ncall(method, tableService){
+    <span class="keyword">return</span> node(method, tableService)
+        .apply(tableService, <span class="keyword">Array</span>.prototype.slice.call(arguments, <span class="number">2</span>));
+}
+<span class="keyword">function</span> node(method, tableService){
+    <span class="keyword">return</span> <span class="keyword">function</span>(){
+        <span class="keyword">var</span> args = <span class="keyword">Array</span>.prototype.slice.call(arguments, <span class="number">0</span>);
+        <span class="keyword">return</span> Q.all(args).then(<span class="keyword">function</span>(args){
+            <span class="keyword">return</span> Q.node(method).apply(tableService, args); 
+        });
+    }
+}
+
+<span class="keyword">function</span> ObjectStream(){
+    <span class="keyword">var</span> ended = Q.defer();
+    <span class="keyword">var</span> listEnd = Q.resolve();
+    <span class="keyword">var</span> handlers = [];
+    <span class="keyword">this</span>.next = <span class="keyword">function</span>(value){
+        <span class="keyword">var</span> nextValue = listEnd.then(<span class="keyword">function</span>(){
+            <span class="keyword">return</span> value;
+        }).then(<span class="keyword">function</span>(){
+            handlers.map(<span class="keyword">function</span>(handler){
+                <span class="keyword">return</span> handler()
+            });
+        }, <span class="keyword">function</span>(reason){
+            end();
+            <span class="keyword">return</span> Q.reject(reason);
+        })
+        listEnd = nextValue;
+    };
+    <span class="keyword">var</span> end = <span class="keyword">this</span>.end = <span class="keyword">function</span>(){
+        listEnd.then(<span class="keyword">function</span>(){
+            ended.resolve();
+        }, <span class="keyword">function</span>(reason){
+            ended.reject(reason);
+        });
+    };
+    <span class="keyword">this</span>.onNext = <span class="keyword">function</span>(handler){
+
+    };
+    <span class="comment">//return promise</span>
+    <span class="keyword">this</span>.ended = <span class="keyword">function</span>(){
+        <span class="keyword">return</span> ended.promise;
+    };
+}</code></pre> 
+               
+            </div> 
+           
+         
+      </div> 
+    </div> 
+  </div> 
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.0.2/bootstrap.min.js"/> 
+</html>

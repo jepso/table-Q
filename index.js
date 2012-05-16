@@ -1,3 +1,5 @@
+
+
 var Q     = require('qq'),
     azure = require('azure');
 
@@ -6,9 +8,9 @@ var Q     = require('qq'),
  * 
  * @return {object} Table Service
  */
-exports = function(){
+var TableQ = module.exports = function(){
     var service = azure.createTableService.apply(azure, arguments);
-    var self = {};
+    var tableService = {};
 
     /**
      * Create table if not exists
@@ -16,14 +18,14 @@ exports = function(){
      * @param {string} name The name of the table to create
      * @return {>bool} success
      */
-    self.createTable = node(service.createTableIfNotExists, service);
+    tableService.createTable = node(service.createTableIfNotExists, service);
 
     /**
      * Get a list of all table names
      * 
      * @return {>array} array of ALL table names
      */
-    self.getTables = function(){
+    tableService.getTables = function(){
         var result = Q.defer();
         var res = [];
 
@@ -36,7 +38,9 @@ exports = function(){
             if(continuation.hasNextPage()){
                 continuation.getNextPage(next);
             }else{
-                result.resolve(res);
+                result.resolve(res.map(function(tab){
+                    return tab.TableName;
+                }));
             }
         };
 
@@ -49,9 +53,14 @@ exports = function(){
      * @param {string} name The name of the table to delete
      * @return {>bool} success
      */
-    self.deleteTable = node(service.deleteTable, service);
+    tableService.deleteTable = node(service.deleteTable, service);
 
-    self.getTable = function(tableName){
+    /**
+     * Get the service to access and individual table
+     * @param  {string} tableName The table you want to access
+     * @return {object}           Table service for that table
+     */
+    tableService.getTable = function(tableName){
         var table = {name:tableName};
 
 
@@ -77,18 +86,18 @@ exports = function(){
         return table;
     };
 
-    return self;
+    return tableService;
 };
 
-function ncall(method, self){
-    return node(method, self)
-        .apply(self, Array.prototype.slice.call(arguments, 2));
+function ncall(method, tableService){
+    return node(method, tableService)
+        .apply(tableService, Array.prototype.slice.call(arguments, 2));
 }
-function node(method, self){
+function node(method, tableService){
     return function(){
         var args = Array.prototype.slice.call(arguments, 0);
         return Q.all(args).then(function(args){
-            return Q.napply(method, self, args); 
+            return Q.node(method).apply(tableService, args); 
         });
     }
 }
